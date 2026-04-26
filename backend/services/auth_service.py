@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta, timezone
@@ -18,11 +19,11 @@ def create_token(user_id, role):
     expiry = datetime.now(timezone.utc) + timedelta(hours=24)
     payload = {"user_id":user_id, "role":role, "exp":expiry}
 
-    return jwt.encode(payload, JWT_SECRET, algorithm=["HS256"])
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 def decode_token(token):
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
 
     except Exception:
-        raise ValueError("Invalid or expired token")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
