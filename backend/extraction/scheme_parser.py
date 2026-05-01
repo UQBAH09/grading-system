@@ -12,16 +12,15 @@ class SchemeParser:
         structured_data = []
 
         for q_num, content in candidates:
-            if re.search(r'\[\d+\]', content):
-                clean_content = re.sub(r'\.{5,}', '', content)
-                clean_content = clean_content.replace('\n', ' ')
-                clean_content = clean_content.strip()
+            clean_content = re.sub(r'\.{5,}', '', content)
+            clean_content = clean_content.replace('\n', ' ')
+            clean_content = clean_content.strip()
 
-                if clean_content:
-                    question_entry = {
-                        "question_number": int(q_num),
-                        "criteria_text": clean_content,
-                    }
-                    structured_data.append(question_entry)
+            if clean_content:
+                question_entry = {
+                    "question_number": int(q_num),
+                    "criteria_text": clean_content,
+                }
+                structured_data.append(question_entry)
 
         return structured_data
