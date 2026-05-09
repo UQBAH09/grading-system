@@ -1,7 +1,20 @@
 [project]
 name = "grading-system"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-Powered Automated Answer Sheet Grading System"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "pymupdf",
+    "pytesseract",
+    "pillow",
+    "python-jose",
+    "passlib",
+    "python-multipart",
+    "anthropic",
+    "python-dotenv",
+]
