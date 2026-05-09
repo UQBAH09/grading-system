@@ -11,7 +11,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const { login, loginAsDevUser, isLoading } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -19,13 +19,13 @@ export function LoginPage() {
     e.preventDefault()
     setError(null)
 
-    if (!email || !password) {
-      setError('Please enter both email and password')
+    if (!username || !password) {
+      setError('Please enter both username and password')
       return
     }
 
     try {
-      await login(email, password)
+      await login(username, password)
       navigate('/dashboard')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed. Please try again.'
@@ -40,10 +40,8 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Subtle background pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-secondary/20 via-background to-background" />
       
-      {/* Theme Toggle - Top Right */}
       <button
         onClick={toggleTheme}
         className="absolute top-4 right-4 flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 shadow-sm"
@@ -58,7 +56,6 @@ export function LoginPage() {
       
       <Card className="relative w-full max-w-md shadow-xl border border-border">
         <CardHeader className="text-center pb-6">
-          {/* Logo */}
           <div className="mx-auto w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg">
             <GraduationCap className="w-7 h-7 text-primary-foreground" />
           </div>
@@ -78,11 +75,11 @@ export function LoginPage() {
             )}
 
             <Input
-              type="email"
-              label="Email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              label="Username"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
             
@@ -103,9 +100,6 @@ export function LoginPage() {
                 />
                 <span className="text-muted-foreground">Remember me</span>
               </label>
-              <a href="#" className="text-primary hover:underline">
-                Forgot password?
-              </a>
             </div>
 
             <Button
@@ -118,7 +112,6 @@ export function LoginPage() {
             </Button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
@@ -128,7 +121,6 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* Dev Mode Button - Clearly separated from real login */}
           <button
             type="button"
             onClick={handleDevLogin}
@@ -144,8 +136,8 @@ export function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               {"Don't have an account? "}
-              <a href="#" className="text-primary hover:underline font-medium">
-                Contact Admin
+              <a href="/signup" className="text-primary hover:underline font-medium">
+                Sign Up
               </a>
             </p>
           </div>

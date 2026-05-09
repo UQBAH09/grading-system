@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 interface User {
   id: string
-  email: string
+  username: string
   name: string
   role: string
 }
@@ -12,7 +12,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   isDevMode: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<void>
   loginAsDevUser: () => void
   logout: () => void
   error: string | null
@@ -21,14 +21,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const STORAGE_KEY = 'ai-grader-user'
+const STORAGE_TOKEN = 'ai-grader-token'
 const DEV_MODE_KEY = 'ai-grader-dev-mode'
 
-// Mock user for development/testing only
 const DEV_USER: User = {
   id: 'dev-user-001',
-  email: 'dev@example.com',
+  username: 'devuser',
   name: 'Development User',
-  role: 'Teacher',
+  role: 'teacher',
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -48,33 +48,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Real login - makes API call to /auth/login
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/auth/login', {
+      const response = await fetch('http://localhost:8000/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `Login failed: ${response.status}`)
+        throw new Error(errorData.detail || `Login failed: ${response.status}`)
       }
 
       const data = await response.json()
+
+      // Store JWT token separately
+      localStorage.setItem(STORAGE_TOKEN, data.token)
+
       const userData: User = {
-        id: data.user?.id || data.id,
-        email: data.user?.email || email,
-        name: data.user?.name || data.name || 'User',
-        role: data.user?.role || data.role || 'Teacher',
+        id: String(data.user_id),
+        username: username,
+        name: data.name,
+        role: data.role,
       }
-      
+
       setUser(userData)
       setIsDevMode(false)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(userData))
@@ -88,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Dev mode login - bypasses API for development/testing
   const loginAsDevUser = () => {
     setUser(DEV_USER)
     setIsDevMode(true)
@@ -100,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setIsDevMode(false)
     localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(STORAGE_TOKEN)
     localStorage.removeItem(DEV_MODE_KEY)
   }
 
