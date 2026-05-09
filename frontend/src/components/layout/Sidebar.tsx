@@ -1,15 +1,30 @@
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Upload, FileText, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
-const navItems = [
+const teacherNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/upload/new', icon: Upload, label: 'Upload' },
-  { to: '/results/1', icon: FileText, label: 'Results' },
-  { to: '/stats/1', icon: BarChart3, label: 'Stats' },
+]
+
+const studentNavItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+]
+
+const personalNavItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/personal/upload', icon: Upload, label: 'Upload & Grade' },
 ]
 
 export function Sidebar() {
+  const { user } = useAuth()
+
+  const navItems = user?.role === 'personal'
+    ? personalNavItems
+    : user?.role === 'teacher'
+    ? teacherNavItems
+    : studentNavItems
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col">
       {/* Logo */}

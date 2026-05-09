@@ -9,6 +9,7 @@ import { StudentDetailPage } from './pages/StudentDetailPage'
 import { StatsPage } from './pages/StatsPage'
 import { useAuth } from './contexts/AuthContext'
 import type { ReactNode } from 'react'
+import { PersonalUploadPage } from './pages/PersonalUploadPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -39,6 +40,8 @@ function App() {
         <Route path="results/:examId" element={<ResultsPage />} />
         <Route path="student/:sheetId" element={<StudentDetailPage />} />
         <Route path="stats/:examId" element={<StatsPage />} />
+        <Route path="personal/upload" element={<PersonalUploadPage />} />
+        <Route path="personal/results/:id" element={<ResultsPage />} />
       </Route>
     </Routes>
   )
