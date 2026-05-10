@@ -1,19 +1,11 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { mockQuestionStats, mockStudentScores } from '@/lib/data'
+import { Spinner } from '@/components/ui/Spinner'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Download } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -21,246 +13,153 @@ export function StatsPage() {
   const { examId } = useParams()
   const navigate = useNavigate()
   const { theme } = useTheme()
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Theme-aware chart colors
   const chartColors = {
     primary: theme === 'dark' ? '#3B7AB8' : '#2C5F8A',
-    secondary: theme === 'dark' ? '#5C9BD1' : '#90CAF9',
     grid: theme === 'dark' ? '#334155' : '#E2E8F0',
     text: theme === 'dark' ? '#94A3B8' : '#64748B',
     tooltipBg: theme === 'dark' ? '#1E293B' : '#FFFFFF',
     tooltipBorder: theme === 'dark' ? '#334155' : '#E2E8F0',
   }
 
-  // Transform data for charts
-  const questionData = mockQuestionStats.map(q => ({
-    name: `Q${q.question}`,
-    'Average Marks': q.avg_marks,
-    'Max Marks': q.max_marks,
-  }))
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('ai-grader-token')
+        const response = await fetch(`http://localhost:8000/results/stats/${examId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (!response.ok) throw new Error('Failed to fetch stats')
+        const data = await response.json()
+        setStats(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load stats')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStats()
+  }, [examId])
 
-  const studentData = mockStudentScores.map(s => ({
-    name: s.student_name.split(' ')[0], // First name only for chart
-    'Total Marks': s.total_marks,
+  const handleDownloadCSV = async () => {
+    const token = localStorage.getItem('ai-grader-token')
+    const response = await fetch(`http://localhost:8000/results/marksheet/${examId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `marksheet_${examId}.csv`
+    a.click()
+  }
+
+  if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+  if (error) return <div className="p-4 rounded-xl bg-destructive/10 text-destructive">{error}</div>
+  if (!stats || stats.total_students === 0) return (
+    <div className="space-y-6">
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+        <ArrowLeft className="w-4 h-4" />Back
+      </Button>
+      <Card>
+        <CardContent className="pt-6 text-center py-10">
+          <p className="text-muted-foreground">No submissions yet for this assignment.</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const studentData = stats.students.map((s: any) => ({
+    name: s.student_name.split(' ')[0],
+    'Total Marks': s.total_marks
   }))
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4" />
-          Back
+          <ArrowLeft className="w-4 h-4" />Back
         </Button>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Statistics</h2>
-          <p className="text-muted-foreground mt-1">
-            Midterm Exam - Mathematics
-          </p>
+          <h2 className="text-2xl font-semibold text-foreground">Class Statistics</h2>
+          <p className="text-muted-foreground mt-1">{stats.total_students} student{stats.total_students > 1 ? 's' : ''} submitted</p>
         </div>
-        <Button variant="outline">
-          <Download className="w-4 h-4" />
-          Export Report
+        <Button variant="outline" onClick={handleDownloadCSV}>
+          <Download className="w-4 h-4" />Download CSV
         </Button>
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Question Performance Chart */}
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Average Marks Per Question</CardTitle>
-            <CardDescription>
-              Comparison of average marks achieved vs maximum marks per question
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={questionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fill: chartColors.text, fontSize: 12 }}
-                    axisLine={{ stroke: chartColors.grid }}
-                  />
-                  <YAxis 
-                    tick={{ fill: chartColors.text, fontSize: 12 }}
-                    axisLine={{ stroke: chartColors.grid }}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: chartColors.tooltipBg,
-                      border: `1px solid ${chartColors.tooltipBorder}`,
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                      color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
-                    }}
-                    labelStyle={{
-                      color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
-                    }}
-                  />
-                  <Legend 
-                    wrapperStyle={{
-                      color: chartColors.text,
-                    }}
-                  />
-                  <Bar 
-                    dataKey="Average Marks" 
-                    fill={chartColors.primary}
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="Max Marks" 
-                    fill={chartColors.secondary}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-3xl font-bold text-primary">{stats.average}</div>
+            <p className="text-sm text-muted-foreground mt-1">Class Average</p>
           </CardContent>
         </Card>
-
-        {/* Student Score Comparison */}
         <Card>
-          <CardHeader>
-            <CardTitle>Student Score Comparison</CardTitle>
-            <CardDescription>
-              Total marks achieved by each student
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={studentData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fill: chartColors.text, fontSize: 12 }}
-                    axisLine={{ stroke: chartColors.grid }}
-                  />
-                  <YAxis 
-                    tick={{ fill: chartColors.text, fontSize: 12 }}
-                    axisLine={{ stroke: chartColors.grid }}
-                    domain={[0, 50]}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: chartColors.tooltipBg,
-                      border: `1px solid ${chartColors.tooltipBorder}`,
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                      color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
-                    }}
-                    labelStyle={{
-                      color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
-                    }}
-                  />
-                  <Bar 
-                    dataKey="Total Marks" 
-                    fill={chartColors.primary}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-3xl font-bold text-success">{stats.highest}</div>
+            <p className="text-sm text-muted-foreground mt-1">Highest Score</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <div className="text-3xl font-bold text-destructive">{stats.lowest}</div>
+            <p className="text-sm text-muted-foreground mt-1">Lowest Score</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Trend Chart */}
+      {/* Student Score Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Question Difficulty Trend</CardTitle>
-          <CardDescription>
-            Shows how average performance varies across questions
-          </CardDescription>
+          <CardTitle>Student Score Comparison</CardTitle>
+          <CardDescription>Total marks achieved by each student</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={questionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={studentData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fill: chartColors.text, fontSize: 12 }}
-                  axisLine={{ stroke: chartColors.grid }}
-                />
-                <YAxis 
-                  tick={{ fill: chartColors.text, fontSize: 12 }}
-                  axisLine={{ stroke: chartColors.grid }}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: chartColors.tooltipBg,
-                    border: `1px solid ${chartColors.tooltipBorder}`,
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                    color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
-                  }}
-                  labelStyle={{
-                    color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
-                  }}
-                />
-                <Legend 
-                  wrapperStyle={{
-                    color: chartColors.text,
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Average Marks" 
-                  stroke={chartColors.primary}
-                  strokeWidth={2}
-                  dot={{ fill: chartColors.primary, strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Max Marks" 
-                  stroke={chartColors.secondary}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ fill: chartColors.secondary, strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
+                <XAxis dataKey="name" tick={{ fill: chartColors.text, fontSize: 12 }} axisLine={{ stroke: chartColors.grid }} />
+                <YAxis tick={{ fill: chartColors.text, fontSize: 12 }} axisLine={{ stroke: chartColors.grid }} />
+                <Tooltip contentStyle={{
+                  backgroundColor: chartColors.tooltipBg,
+                  border: `1px solid ${chartColors.tooltipBorder}`,
+                  borderRadius: '12px',
+                  color: theme === 'dark' ? '#E2E8F0' : '#1E293B',
+                }} />
+                <Bar dataKey="Total Marks" fill={chartColors.primary} radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-foreground">
-              {(mockQuestionStats.reduce((acc, q) => acc + q.avg_marks, 0) / mockQuestionStats.length).toFixed(1)}
+      {/* Student List */}
+      <Card>
+        <CardHeader><CardTitle>Student Results</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {stats.students.map((s: any) => (
+            <div key={s.submission_id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+              <div>
+                <p className="font-medium text-foreground">{s.student_name}</p>
+                <p className="text-sm text-muted-foreground">{s.total_marks} marks</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/results/submission/${s.submission_id}`)}>
+                View Details
+              </Button>
             </div>
-            <p className="text-sm text-muted-foreground">Avg Marks per Question</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-success">Q2a</div>
-            <p className="text-sm text-muted-foreground">Best Performed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-destructive">Q2b</div>
-            <p className="text-sm text-muted-foreground">Needs Attention</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-primary">68%</div>
-            <p className="text-sm text-muted-foreground">Class Average</p>
-          </CardContent>
-        </Card>
-      </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   )
 }

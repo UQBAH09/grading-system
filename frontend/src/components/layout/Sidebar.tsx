@@ -9,6 +9,7 @@ const teacherNavItems = [
 
 const studentNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/assignments', icon: FileText, label: 'My Assignments' },
 ]
 
 const personalNavItems = [

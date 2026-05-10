@@ -124,3 +124,20 @@ async def get_result(id: int, current_user = Depends(get_current_user)):
         "max_marks": max_total,
         "parts": results
     }
+
+@router.get("/submissions")
+async def get_submissions(current_user = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+    submissions = db_service.query(Submission, {"user_id": user_id})
+    
+    return {
+        "submissions": [
+            {
+                "submission_id": s.submission_id,
+                "status": s.status,
+                "submitted_at": str(s.submitted_at),
+                "answer_file_path": s.answer_file_path.split("/")[-1]
+            }
+            for s in submissions
+        ]
+    }

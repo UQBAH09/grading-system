@@ -44,3 +44,6 @@ class Core:
 
     async def notify_user(self, user_id, status):
         pass
+
+    async def on_grading_complete(self, submission_id):
+        await self.update_status(submission_id, "done")
