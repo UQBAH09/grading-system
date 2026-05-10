@@ -15,9 +15,5 @@ dependencies = [
     "python-jose>=3.5.0",
     "passlib>=1.7.4",
     "python-multipart>=0.0.26",
-    "anthropic>=0.96.0",
     "python-dotenv>=1.2.2",
-    "openai>=2.36.0",
-    "google-generativeai>=0.8.6",
-    "google-genai>=2.0.1",
 ]
