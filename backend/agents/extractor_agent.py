@@ -6,98 +6,88 @@ from extraction.ocr_extractor import OCRExtractor
 from extraction.question_parser import QuestionParser
 from extraction.scheme_parser import SchemeParser
 from services.db_service import DBService
-from models.personal_answer_part import PersonalAnswerPart
-from models.personal_scheme_question import PersonalSchemeQuestion
 from models.answer_part import AnswerPart
-from models.scheme_question import SchemeQuestion
+from models.question import Question
 
 class ExtractorAgent(BaseAgent):
-    def __init__(self, file_path, scheme_path, submission_id, submission_type, core):
+    def __init__(self, file_path, scheme_path, submission_id, scheme_id, submission_type, core):
         super().__init__(agent_id=str(uuid.uuid4()), status="idle")
         self.file_path = file_path
         self.scheme_path = scheme_path
         self.submission_id = submission_id
+        self.scheme_id = scheme_id
         self.submission_type = submission_type
         self.core = core
-        self.file_type = self.detect_file_type(file_path)
+        self.file_type = self._detect_file_type(file_path)
         self.db_service = DBService()
 
-    def detect_file_type(self, path):
+    def _detect_file_type(self, path):
         ext = os.path.splitext(path)[1].lower()
         return "pdf" if ext == ".pdf" else "image"
 
     async def run(self):
         self.status = "busy"
         try:
-            # Select extraction strategy based on file type
-            if self.file_type == "pdf":
-                extractor = PDFExtractor()
-            else:
-                extractor = OCRExtractor()
-
-            # Extract text from answer sheet
+            # Extract answer sheet text
+            extractor = PDFExtractor() if self.file_type == "pdf" else OCRExtractor()
             answer_text = extractor.extract(self.file_path)
 
-            # Extract text from scheme file
-            scheme_type = self.detect_file_type(self.scheme_path)
-            if scheme_type == "pdf":
-                scheme_extractor = PDFExtractor()
-            else:
-                scheme_extractor = OCRExtractor()
+            # Extract scheme text
+            scheme_type = self._detect_file_type(self.scheme_path)
+            scheme_extractor = PDFExtractor() if scheme_type == "pdf" else OCRExtractor()
             scheme_text = scheme_extractor.extract(self.scheme_path)
 
-            # Parse answer parts and scheme questions
-            question_parser = QuestionParser()
-            scheme_parser = SchemeParser()
+            # Parse
+            answer_parts = QuestionParser().parse_parts(answer_text)
+            scheme_questions = SchemeParser().parse_questions(scheme_text)
 
-            answer_parts = question_parser.parse_parts(answer_text)
-            scheme_questions = scheme_parser.parse_questions(scheme_text)
+            # Save scheme questions as Question rows
+            self._save_questions(scheme_questions)
 
-            # Save parsed data to DB
-            if self.submission_type == "personal":
-                self._save_personal_parts(answer_parts, scheme_questions)
-            else:
-                self._save_sheet_parts(answer_parts)
+            # Save answer parts
+            self._save_answer_parts(answer_parts)
 
             await self.send_finish_signal()
 
         except Exception as e:
             print(f"ExtractorAgent error: {e}")
-            await self.core.on_failure(self.submission_id, self.submission_type)
+            await self.core.on_failure(self.submission_id)
             self.status = "failed"
 
-    def _save_personal_parts(self, answer_parts, scheme_questions):
-        # Save answer parts
-        for part in answer_parts:
-            answer_part = PersonalAnswerPart(
-                submission_id=self.submission_id,
-                question_number=part["question_number"],
-                part=part.get("part"),
-                extracted_text=part["full_text"]
+    def _save_questions(self, scheme_questions):
+        for q in scheme_questions:
+            label = f"{q['question_number']}{q['part'] or ''}"
+            question = Question(
+                scheme_id=self.scheme_id,
+                parent_id=None,
+                label=label,
+                max_marks=q.get("max_marks", 10),
+                criteria_text=q.get("criteria_text", "")
             )
-            self.db_service.save(answer_part)
+            self.db_service.save(question)
 
-        # Save scheme questions
-        for question in scheme_questions:
-            scheme_q = PersonalSchemeQuestion(
-                submission_id=self.submission_id,
-                question_number=question["question_number"],
-                part=question.get("part"),
-                max_marks=question.get("max_marks", 10),
-                criteria_text=question["criteria_text"]
-            )
-            self.db_service.save(scheme_q)
-
-    def _save_sheet_parts(self, answer_parts):
-        # For teacher/student path
+    def _save_answer_parts(self, answer_parts):
+        # Match each answer part to its question by label
         for part in answer_parts:
-            answer_part = AnswerPart(
-                sheet_id=self.submission_id,
-                question_number=part["question_number"],
-                part=part.get("part"),
-                extracted_text=part["full_text"]
-            )
-            self.db_service.save(answer_part)
+            label = f"{part['question_number']}{part.get('part') or ''}"
+
+            # Find matching question
+            session = self.db_service.get_session()
+            try:
+                question = session.query(Question).filter(
+                    Question.scheme_id == self.scheme_id,
+                    Question.label == label
+                ).first()
+            finally:
+                session.close()
+
+            if question:
+                answer_part = AnswerPart(
+                    submission_id=self.submission_id,
+                    question_id=question.question_id,
+                    extracted_text=part["full_text"]
+                )
+                self.db_service.save(answer_part)
 
     async def send_finish_signal(self):
         self.status = "done"

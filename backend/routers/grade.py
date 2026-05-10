@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Depends
+from fastapi import APIRouter, Depends
 from routers.auth import get_current_user
 
 router = APIRouter(prefix="/grade")

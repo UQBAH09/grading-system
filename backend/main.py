@@ -3,13 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers import auth, grade, personal, results, upload
 from database.base import Base
 from database.session import engine
-from models import (
-    user, teacher, student, personal as personal_model,
-    assignment, marking_scheme, scheme_question,
-    answer_sheet, answer_part, grading_result,
-    personal_submission, personal_scheme_question,
-    personal_answer_part, personal_grading_result
-)
+from models.user import User
+from models.teacher_students import TeacherStudent
+from models.marking_scheme import MarkingScheme
+from models.assignment import Assignment
+from models.submission import Submission
+from models.question import Question
+from models.answer_part import AnswerPart
+from models.grading_result import GradingResult
 
 app = FastAPI(title="AI Grading System")
 

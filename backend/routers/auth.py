@@ -5,9 +5,7 @@ from typing import Optional
 from services.auth_service import AuthService
 from services.db_service import DBService
 from models.user import User
-from models.teacher import Teacher
-from models.student import Student
-from models.personal import Personal
+from models.teacher_students import TeacherStudent
 
 router = APIRouter(prefix="/auth")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -23,7 +21,7 @@ class SignupRequest(BaseModel):
     password: str
     name: str
     role: str  # 'teacher', 'student', 'personal'
-    teacher_username: Optional[str] = None  # only required for students
+    teacher_username: Optional[str] = None
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     return auth_service.decode_token(token)
@@ -51,11 +49,9 @@ async def login(request: LoginRequest):
 
 @router.post("/signup", status_code=201)
 async def signup(request: SignupRequest):
-    # Validate role
     if request.role not in ["teacher", "student", "personal"]:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be teacher, student, or personal")
+        raise HTTPException(status_code=400, detail="Invalid role")
 
-    # Check username is not already taken
     existing = db_service.query(User, {"username": request.username})
     if existing:
         raise HTTPException(status_code=400, detail="Username already taken")
@@ -70,11 +66,7 @@ async def signup(request: SignupRequest):
         if not teacher_users:
             raise HTTPException(status_code=404, detail="Teacher not found")
 
-        teachers = db_service.query(Teacher, {"user_id": teacher_users[0].user_id})
-        if not teachers:
-            raise HTTPException(status_code=404, detail="Teacher profile not found")
-
-        teacher_id = teachers[0].teacher_id
+        teacher_id = teacher_users[0].user_id
 
     # Create user
     user = User(
@@ -85,23 +77,14 @@ async def signup(request: SignupRequest):
     )
     saved_user = db_service.save(user)
 
-    # Create role profile
-    if request.role == "teacher":
-        profile = Teacher(user_id=saved_user.user_id)
-        db_service.save(profile)
-
-    elif request.role == "student":
-        profile = Student(
-            user_id=saved_user.user_id,
-            teacher_id=teacher_id
+    # If student, create teacher_student link
+    if request.role == "student" and teacher_id:
+        link = TeacherStudent(
+            teacher_id=teacher_id,
+            student_id=saved_user.user_id
         )
-        db_service.save(profile)
+        db_service.save(link)
 
-    elif request.role == "personal":
-        profile = Personal(user_id=saved_user.user_id)
-        db_service.save(profile)
-
-    # Auto login after signup
     token = auth_service.create_token(saved_user.user_id, saved_user.role)
 
     return {
