@@ -16,4 +16,6 @@ dependencies = [
     "passlib>=1.7.4",
     "python-multipart>=0.0.26",
     "python-dotenv>=1.2.2",
+    "bcrypt>=5.0.0",
+    "groq>=1.2.0",
 ]
